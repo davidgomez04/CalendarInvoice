@@ -1,7 +1,7 @@
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 import pickle
-import os
+import os, json
 from datetime import datetime, timedelta
 
 scopes = ['https://www.googleapis.com/auth/calendar']
@@ -24,7 +24,7 @@ service = build("calendar", "v3", credentials=credentials)
 
 # Get the list of calendars
 result = service.calendarList().list().execute()
-calendar_id = result['items'][0]['id']
+calendar_id = result['items'][1]['id']
 
 # Define the start and end dates for the current month
 now = datetime.now()
@@ -46,35 +46,24 @@ events_result = service.events().list(
 
 events = events_result.get('items', [])
 
-# Print the events for the current month
-if not events:
-    print('No events found for this month.')
+# Filter and print events that contain "tutor" in the summary
+tutor_events = [event for event in events if 'tutor' in event.get('summary', '').lower()]
+
+with open("tutoring_rates.json", "r") as rates_file:
+    tutor_rates = json.load(rates_file)
+
+if not tutor_events:
+    print('No tutoring events found for this month.')
 else:
-    for event in events:
-        start = event['start'].get('dateTime', event['start'].get('date'))
-        end = event['end'].get('dateTime', event['end'].get('date'))
-
-        # Determine if it's an all-day event
-        is_all_day = 'date' in event['start']
-
-        # Format the start and end times
-        if is_all_day:
-            formatted_start = datetime.fromisoformat(start).strftime('%A, %B %d, %Y (All Day)')
-            formatted_end = ''
-        else:
-            start_datetime = datetime.fromisoformat(start)  # Remove 'Z' and parse
-            end_datetime = datetime.fromisoformat(end)
-            formatted_start = start_datetime.strftime('%A, %B %d, %Y at %I:%M %p')
-            formatted_end = end_datetime.strftime(' to %I:%M %p')
-
-        # Get event details with default values if any are missing
+    for event in tutor_events:
         title = event.get('summary', 'No Title')
         location = event.get('location', 'No Location')
         description = event.get('description', 'No Description')
+        tutor_name = title.split("tutor")[0].strip()
 
-        # Print the nicely formatted event details
-        print(f"Title: {title}")
-        print(f"Time: {formatted_start}{formatted_end}")
-        print(f"Location: {location}")
-        #print(f"Description: {description}")
+        try:
+            print(f"Title: {tutor_name}")
+            print(f"Rate: ${tutor_rates[tutor_name]}")
+        except:
+            print("Can't find " + tutor_name)
         print("-" * 40)
