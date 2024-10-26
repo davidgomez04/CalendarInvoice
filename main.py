@@ -61,9 +61,27 @@ else:
         description = event.get('description', 'No Description')
         tutor_name = title.split("tutor")[0].strip()
 
-        try:
-            print(f"Title: {tutor_name}")
-            print(f"Rate: ${tutor_rates[tutor_name]}")
-        except:
-            print("Can't find " + tutor_name)
-        print("-" * 40)
+        # Get event start and end times
+        start_time = event['start'].get('dateTime')
+        end_time = event['end'].get('dateTime')
+
+        if start_time and end_time:
+            # Calculate event duration in hours
+            start_dt = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
+            end_dt = datetime.fromisoformat(end_time.replace("Z", "+00:00"))
+            duration_hours = (end_dt - start_dt).total_seconds() / 3600  # Duration in hours
+
+            try:
+                rate = tutor_rates[tutor_name]
+                total_price = rate * duration_hours
+
+                # Print event details and calculated price
+                print(f"Title: {tutor_name}")
+                print(f"Start Time: {start_dt.strftime('%Y-%m-%d %H:%M')}")
+                print(f"End Time: {end_dt.strftime('%Y-%m-%d %H:%M')}")
+                print(f"Duration: {duration_hours:.2f} hours")
+                print(f"Rate: ${rate}")
+                print(f"Total Price: ${total_price:.2f}")
+            except KeyError:
+                print(f"Can't find rate for {tutor_name}")
+            print("-" * 40)
