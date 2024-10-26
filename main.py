@@ -3,6 +3,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 import pickle
 import os, json
 from datetime import datetime, timedelta
+from openpyxl import Workbook
 
 scopes = ['https://www.googleapis.com/auth/calendar']
 
@@ -49,6 +50,8 @@ events = events_result.get('items', [])
 # Filter and print events that contain "tutor" in the summary
 tutor_events = [event for event in events if 'tutor' in event.get('summary', '').lower()]
 
+invoice_data = {}
+
 with open("tutoring_rates.json", "r") as rates_file:
     tutor_rates = json.load(rates_file)
 
@@ -57,7 +60,7 @@ if not tutor_events:
 else:
     for event in tutor_events:
         title = event.get('summary', 'No Title')
-        location = event.get('location', 'No Location')
+        location = event.get('location', 'Remote')
         description = event.get('description', 'No Description')
         tutor_name = title.split("tutor")[0].strip()
 
@@ -75,13 +78,44 @@ else:
                 rate = tutor_rates[tutor_name]
                 total_price = rate * duration_hours
 
-                # Print event details and calculated price
-                print(f"Title: {tutor_name}")
-                print(f"Start Time: {start_dt.strftime('%Y-%m-%d %H:%M')}")
-                print(f"End Time: {end_dt.strftime('%Y-%m-%d %H:%M')}")
-                print(f"Duration: {duration_hours:.2f} hours")
-                print(f"Rate: ${rate}")
-                print(f"Total Price: ${total_price:.2f}")
+                if tutor_name not in invoice_data:
+                    invoice_data[tutor_name] = []
+            
+                invoice_data[tutor_name].append({
+                    "date": start_dt.strftime('%Y-%m-%d'),
+                    "duration_hours": duration_hours,
+                    "rate": rate,
+                    "total_price": total_price
+                })
             except KeyError:
-                print(f"Can't find rate for {tutor_name}")
-            print("-" * 40)
+                pass
+            
+# Generate an Excel invoice for each tutor
+for tutor_name, sessions in invoice_data.items():
+    # Create a new workbook and add a worksheet
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Invoice " + tutor_name
+
+    # Set up header row
+    sheet.append(["Date", "Duration (hours)", "Rate ($)", "Total ($)"])
+
+    # Populate rows with session data
+    monthly_total = 0
+    for session in sessions:
+        sheet.append([
+            session["date"],
+            f"{session['duration_hours']:.2f}",
+            f"${session['rate']:.2f}",
+            f"${session['total_price']:.2f}"
+        ])
+        monthly_total += session['total_price']
+
+    # Add monthly total at the end
+    sheet.append([])
+    sheet.append(["", "", "Total for Month:", f"${monthly_total:.2f}"])
+
+    # Save the workbook as an Excel file
+    filename = f"{tutor_name}_invoice_{now.strftime('%Y_%m')}.xlsx"
+    workbook.save(filename)
+    print(f"Invoice created for {tutor_name}: {filename}")
