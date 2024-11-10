@@ -58,6 +58,7 @@ current_month = datetime.now().month
 
 # Dictionary to accumulate invoice data for each tutor
 invoice_data = {}
+monthly_totals = []  # List to hold the total for each month
 
 # Iterate over each month from start_year to the current month
 for year in range(start_year, current_year + 1):
@@ -88,6 +89,7 @@ for year in range(start_year, current_year + 1):
         tutor_events = [event for event in events if 'tutor' in event.get('summary', '').lower()]
 
         # Process each event and calculate totals
+        monthly_total = 0  # Variable to accumulate total for the current month
         for event in tutor_events:
             title = event.get('summary', 'No Title')
             location = event.get('location', 'Remote')
@@ -106,6 +108,7 @@ for year in range(start_year, current_year + 1):
                 try:
                     rate = tutor_rates[tutor_name]
                     total_price = rate * duration_hours
+                    monthly_total += total_price  # Add to the monthly total
 
                     if tutor_name not in invoice_data:
                         invoice_data[tutor_name] = {}
@@ -124,9 +127,23 @@ for year in range(start_year, current_year + 1):
                 except KeyError:
                     pass  # Skip if no rate is found for the tutor name
 
+        # Add the total for the current month to the monthly_totals list
+        if monthly_total > 0:
+            month_name = datetime(year, month, 1).strftime('%B %Y')
+            monthly_totals.append([month_name, monthly_total])
+
+# Print the monthly totals list
+print("Monthly Totals:")
+for total in monthly_totals:
+    print(total)
+
+# Create the Invoices directory if it doesn't exist
+invoices_folder = "Invoices"
+os.makedirs(invoices_folder, exist_ok=True)
+
 # Generate a separate Excel file for each tutor and add worksheets for each month
 for tutor_name, monthly_sessions in invoice_data.items():
-    filename = f"Invoice_{tutor_name}.xlsx"
+    filename = os.path.join(invoices_folder, f"Invoice_{tutor_name}.xlsx")
 
     # Load existing workbook or create a new one
     if os.path.exists(filename):
@@ -168,6 +185,6 @@ for tutor_name, monthly_sessions in invoice_data.items():
 
     # Save the workbook
     workbook.save(filename)
-    print(f"Invoice updated for {tutor_name}: {filename}")
+    #print(f"Invoice updated for {tutor_name}: {filename}")
 
-# This script generates or updates an invoice file for each tutor, with worksheets for each month from the start year to the current month.
+# This script generates or updates an invoice file for each tutor, with worksheets for each month from the start year to the current month, stored in an "Invoices" folder, and also prints the total for each month.
